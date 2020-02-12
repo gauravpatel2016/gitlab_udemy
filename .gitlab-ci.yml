@@ -1,0 +1,78 @@
+image: node
+stages:
+  - caching
+  - build
+  - test
+  - deploy
+  - verify
+create cache:
+  stage: caching
+  script:
+    - npm install
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+    policy: push
+  except:
+    - schedules  
+update cache:
+  stage: caching
+  script:
+    - npm install
+  cache:
+    key: ${CI_COMMIT_REF_SLUG}
+    paths:
+      - node_modules/
+    policy: push  
+  only:
+    - schedules
+build-website:
+  stage: build
+  script:
+    - npm install
+    - npm install -g gatsby-cli
+    - gatsby build
+    - sed -i "s/%%VERSION%%/$CI_COMMIT_SHORT_SHA/" ./public/index.html
+  artifacts:
+    paths:
+      - ./public
+  except:
+    - schedules  
+test artifact:
+  cache: {}
+  image: alpine
+  stage: test
+  script:
+    - grep -q "Gatsby" ./public/index.html
+  except:
+    - schedules  
+
+test website:
+  stage: test
+  script:
+    - npm install
+    - npm install -g gatsby-cli
+    - gatsby serve &
+    - sleep 3
+    - curl "http://localhost:9000" | tac | tac | grep -q "Gatsby"
+  except:
+    - schedules  
+
+deploy website:
+  cache: {}
+  stage: deploy
+  script:
+    - npm install -g surge
+    - surge --project ./public --domain zoota.surge.sh
+  except:
+    - schedules  
+
+post verification of website:
+  cache: {}
+  stage: verify
+  script:
+    - curl -s "http://zoota.surge.sh/" | tac | tac | grep -q "Gatsby"
+    - curl -s "http://zoota.surge.sh/" | tac | tac | grep -q "$CI_COMMIT_SHORT_SHA"
+  except:
+    - schedules  
