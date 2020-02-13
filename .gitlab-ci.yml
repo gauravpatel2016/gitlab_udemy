@@ -1,10 +1,25 @@
+# global section - you can override image in job section
+# stages - shows the order of execution
 image: node
 stages:
   - caching
   - build
   - test
-  - deploy
-  - verify
+  - deploy to staging
+  - deploy to production
+  - production tests
+
+variables:
+  STAGING_DOMAIN: zoota-staging.surge.sh
+  PRODUCTION_DOMAIN: zoota.surge.sh
+
+# cache like node_modules we can generate every time when pipeline runs
+# Policy - default is push and pull. We can't set policy at global level
+# We do not need to pull cache for this job
+# except - you can define when to run/not run job section
+# only - you can specify this option to run this job only schedules
+# to disable the job - add `.` in front of the title of the job
+#                     example - .create cache:
 create cache:
   stage: caching
   script:
@@ -59,18 +74,34 @@ test website:
   except:
     - schedules  
 
-deploy website:
+# environment - to specify where you want to deploy    
+deploy to staging:
   cache: {}
-  stage: deploy
+  stage: deploy to staging
+  environment:
+    name: staging
+    url: http://$STAGING_DOMAIN
   script:
     - npm install -g surge
-    - surge --project ./public --domain zoota.surge.sh
+    - surge --project ./public --domain $STAGING_DOMAIN
   except:
     - schedules  
 
-post verification of website:
+deploy to production:
   cache: {}
-  stage: verify
+  stage: deploy to production
+  environment:
+    name: staging
+    url: http://$PRODUCTION_DOMAIN
+  script:
+    - npm install -g surge
+    - surge --project ./public --domain $PRODUCTION_DOMAIN
+  except:
+    - schedules  
+
+post production tests:
+  cache: {}
+  stage: production tests
   script:
     - curl -s "http://zoota.surge.sh/" | tac | tac | grep -q "Gatsby"
     - curl -s "http://zoota.surge.sh/" | tac | tac | grep -q "$CI_COMMIT_SHORT_SHA"
