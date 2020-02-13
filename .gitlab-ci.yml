@@ -81,39 +81,42 @@ test website:
   except:
     - schedules  
 
-# environment - to specify where you want to deploy    
-# only: -master - Just run this job on master branch
-deploy to staging:
-  cache: {}
-  stage: deploy to staging
-  environment:
-    name: staging
-    url: http://$STAGING_DOMAIN
+# . disables the job
+# a template you can use using anchor &,*,<<
+.deploy-template: &deploy
   only:
     - master
   script:
     - npm install -g surge
-    - surge --project ./public --domain $STAGING_DOMAIN
+    - surge --project ./public --domain $DOMAIN
   except:
     - schedules  
-
+  environment:
+    name: $NAME
+    url: http://$DOMAIN  
+  
+# environment - to specify where you want to deploy    
+# only: -master/merge_requests - Just run this job on master/merge_requests branch
+deploy to staging:
+  <<: *deploy
+  cache: {}
+  stage: deploy to staging
+  variables:
+    NAME: staging
+    DOMAIN: $STAGING_DOMAIN
+  
 # when: manual - this will add a manual step and stop deploying to prod automatically
 # allow_failure: false - this will block subsequent jobs to run until manual verification is passed
 deploy to production:
+  <<: *deploy
   cache: {}
   stage: deploy to production
-  environment:
-    name: production
-    url: http://$PRODUCTION_DOMAIN
-  only:
-    - master    
+  variables:
+    NAME: production
+    DOMAIN: $PRODUCTION_DOMAIN
+
 #  when: manual
-#  allow_failure: false
-  script:
-    - npm install -g surge
-    - surge --project ./public --domain $PRODUCTION_DOMAIN
-  except:
-    - schedules  
+#  allow_failure: false 
 
 post production tests:
   cache: {}
