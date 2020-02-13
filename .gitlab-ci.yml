@@ -20,17 +20,14 @@ variables:
 # only - you can specify this option to run this job only schedules
 # to disable the job - add `.` in front of the title of the job
 #                     example - .create cache:
-create cache:
-  stage: caching
-  script:
-    - npm install
-  cache:
-    key: ${CI_COMMIT_REF_SLUG}
-    paths:
-      - node_modules/
-    policy: push
-  except:
-    - schedules  
+# you should use cache key = ${CI_COMMIT_REF_SLUG}
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+
+# I have to redefine key/paths for cache again otherwise it won't upload cache
 update cache:
   stage: caching
   script:
@@ -42,6 +39,16 @@ update cache:
     policy: push  
   only:
     - schedules
+
+# This cache will be created/uploaded because no cache section is specified.
+# If you specify cache section, you must have to redefine key/paths or it wont upload
+build cache:
+  stage: caching
+  script:
+    - npm install
+  except:
+    - schedules  
+
 build-website:
   stage: build
   script:
@@ -75,12 +82,15 @@ test website:
     - schedules  
 
 # environment - to specify where you want to deploy    
+# only: -master - Just run this job on master branch
 deploy to staging:
   cache: {}
   stage: deploy to staging
   environment:
     name: staging
     url: http://$STAGING_DOMAIN
+  only:
+    - master
   script:
     - npm install -g surge
     - surge --project ./public --domain $STAGING_DOMAIN
@@ -95,8 +105,10 @@ deploy to production:
   environment:
     name: production
     url: http://$PRODUCTION_DOMAIN
-  when: manual
-  allow_failure: false
+  only:
+    - master    
+#  when: manual
+#  allow_failure: false
   script:
     - npm install -g surge
     - surge --project ./public --domain $PRODUCTION_DOMAIN
@@ -106,8 +118,10 @@ deploy to production:
 post production tests:
   cache: {}
   stage: production tests
+  only:
+    - master  
   script:
     - curl -s "http://zoota.surge.sh/" | tac | tac | grep -q "Gatsby"
     - curl -s "http://zoota.surge.sh/" | tac | tac | grep -q "$CI_COMMIT_SHORT_SHA"
   except:
-    - schedules  
+    - schedules
