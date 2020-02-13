@@ -87,12 +87,16 @@ deploy to staging:
   except:
     - schedules  
 
+# when: manual - this will add a manual step and stop deploying to prod automatically
+# allow_failure: false - this will block subsequent jobs to run until manual verification is passed
 deploy to production:
   cache: {}
   stage: deploy to production
   environment:
-    name: staging
+    name: production
     url: http://$PRODUCTION_DOMAIN
+  when: manual
+  allow_failure: false
   script:
     - npm install -g surge
     - surge --project ./public --domain $PRODUCTION_DOMAIN
